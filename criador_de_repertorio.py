@@ -3,77 +3,13 @@ import numpy
 import re
 import tkinter as tk
 from tkinter import ttk 
+import baixando_cifras_letras
+from unidecode import unidecode
+from docx import Document
+from docx.shared import Pt
+from docx.shared import RGBColor
 
-tonalidades = ['','C','Db','D','Eb','E','F','F#','Gb','G','Ab','A','Bb','B',
-               'Cm','C#m','Dm','Ebm','Em','Fm','F#m','Gm','G#m','Am','A#m','Bbm','Bm']
-andamentos = ['','1 - Muito lento','2 - Lento','3 - Médio','4 - Rápido','5 - Muito Rápido']
-arquivo='repertorio.csv'
-def open():
-    global df
-    tabela.delete(*tabela.get_children())
-    df=pd.read_csv(arquivo)
-    df_exibicao=df.sort_index(ascending=False)
-    tabela['column']=list(df_exibicao.columns)
-    tabela['show']= 'headings'
-    for col in tabela['column']:
-        tabela.column(col,anchor='center', stretch=False, width=100)
-        tabela.heading(col, text=col)
-    linhas=df_exibicao.to_numpy().tolist()
-    for linha in linhas:
-        tabela.insert('','end',values=linha)
-
-def cadastrar():
-    janela_cadastro()
-
-def deletar():
-    global df
-    selected_item = tabela.selection()[0]
-    nome=tabela.item(selected_item,'values')[0]
-    df=df.loc[df['nome'] != nome]
-    df.to_csv('repertorio.csv', index=False)
-    tabela.delete(selected_item)
-    
-
-
-def janela_consultar():
-    global tabela
-    janela_consulta=tk.Tk()
-    janela_consulta.title('Consulta de músicas')
-    janela_consulta.geometry('900x900')
-
-    botao=tk.Button(janela_consulta,text='Cadastrar Nova Música',command=cadastrar)
-    botao.pack(pady=20)
-    botao=tk.Button(janela_consulta,text='Deletar',command=deletar)
-    botao.pack(pady=20)
-    tabela=ttk.Treeview(janela_consulta, selectmode='browse')
-    tabela.pack(side ='left')
-    tabela.heading('#0', text='\n')
-    tabela['height']=20
-    scrlbar = ttk.Scrollbar(janela_consulta, orient ="vertical", command = tabela.yview)
-    scrlbar.pack(side ='right')
-    tabela.configure(xscrollcommand = scrlbar.set)
-    open() 
-    janela_consulta.mainloop()
-
-
-
-#--------------------------
-
-def salvar_cadastro():
-    global df
-    novo_cadastro= {'nome':insert_nome.get(), 'tom':insert_tom.get(),'compositor':insert_compositor.entry.get(),
-                     'artista':insert_artista.entry.get(),'genero':insert_genero.entry.get(),
-                     'subgenero':insert_subgenero.entry.get(),'andamento':insert_andamento.get(),
-                     'clima':insert_clima.entry.get(),'tema':insert_tema.entry.get()}
-    
-    df = df._append(novo_cadastro,ignore_index=True)
-    df.to_csv(arquivo,index=False)
-    tabela.insert('',index=0,values=[insert_nome.get(),insert_tom.get(),insert_compositor.entry.get(),insert_artista.entry.get(),
-                                     insert_genero.entry.get(),insert_subgenero.entry.get(),insert_andamento.get(),
-                                     insert_clima.entry.get(),insert_tema.entry.get()])
-
-
-
+#Widgets personalizados
 class EntryLimit(tk.Entry):
     def __init__(self, master, limit, width=10):
         self.limit_var=limit
@@ -110,9 +46,9 @@ class MeuComboBox():
             selecionado=self.list_box.curselection()
             self.entry.set(self.list_box.get(selecionado))
             self.entry.focus()
-            self.list_box.pack_forget()
         except:
-            self.list_box.pack_forget()
+            pass
+        self.list_box.pack_forget()
     
     def valida(self,var,index,write):
         self.list_box.delete(0, tk.END)
@@ -123,11 +59,11 @@ class MeuComboBox():
             self.entry.set(self.entry.get()[:self.limit])
             data=[]
             indice_lista=0
-            for compositor in self.dados:
-                if compositor.lower().startswith(self.var_str.get().lower()):
-                    data.append(compositor)
+            for i in self.dados:
+                if i.lower().startswith(self.var_str.get().lower()):
+                    data.append(i)
                     self.list_box.pack()
-                    self.list_box.insert(indice_lista, compositor)
+                    self.list_box.insert(indice_lista, i)
                     indice_lista+=1
             if data == []:
                 self.entry['values']=self.dados
@@ -135,14 +71,219 @@ class MeuComboBox():
             else:
                 self.entry['values']=data
 
+#Variáveis iniciais
+tonalidades = ['','C','Db','D','Eb','E','F','F#','Gb','G','Ab','A','Bb','B',
+               'Cm','C#m','Dm','Ebm','Em','Fm','F#m','Gm','G#m','Am','A#m','Bbm','Bm']
+andamentos = ['','1 - Muito lento','2 - Lento','3 - Médio','4 - Rápido','5 - Muito Rápido']
+arquivo='repertorio.csv'
+
+#início do programa e janela inicial de consulta
+def open():
+    global df
+    tabela.delete(*tabela.get_children())
+    df=pd.read_csv(arquivo)
+    df_exibicao=df.sort_index(ascending=False)
+    tabela['column']=list(df_exibicao.columns)
+    tabela['show']= 'headings'
+    for col in tabela['column']:
+        tabela.column(col,anchor='center', stretch=False, width=100)
+        tabela.heading(col, text=col)
+    linhas=df_exibicao.to_numpy().tolist()
+    for linha in linhas:
+        tabela.insert('','end',values=linha)
+
+def cadastrar():
+    janela_cadastro()
+
+def delet(event):
+    global df
+    if tabela.selection() != ():
+        selected_item = tabela.selection()[0]
+        nome=tabela.item(selected_item,'values')[0]
+        df=df.loc[df['nome'] != nome]
+        df.to_csv('repertorio.csv', index=False)
+        tabela.delete(selected_item)
+
+def deletar():
+    global df
+    if tabela.selection() != ():
+        selected_item = tabela.selection()[0]
+        nome=tabela.item(selected_item,'values')[0]
+        df=df.loc[df['nome'] != nome]
+        df.to_csv('repertorio.csv', index=False)
+        tabela.delete(selected_item)
+    
+
+
+def janela_consultar():
+    global tabela
+    janela_consulta=tk.Tk()
+    janela_consulta.title('Consulta de músicas')
+    janela_consulta.geometry('920x550')
+
+    titulo=tk.Label(janela_consulta, text='CRIADOR DE REPERTÓRIOS')
+    titulo.pack()
+
+    menu=tk.Frame(janela_consulta)
+    menu.pack()
+    botao_cadastro=tk.Button(menu,text='Cadastrar Nova Música',command=cadastrar)
+    botao_cadastro.grid(row=0, column= 0)
+    botao_del=tk.Button(menu,text='Deletar',command=deletar)
+    botao_del.grid(row=0, column= 1)
+
+    tabela=ttk.Treeview(janela_consulta, selectmode='browse',height=20)
+    tabela.pack(side ='left')
+    tabela.heading('#0', text='\n')
+    tabela.bind('<Delete>', delet)
+    scrlbar_y = ttk.Scrollbar(janela_consulta, orient ="vertical", command = tabela.yview)
+    scrlbar_y.pack(side ='right', fill ='y')
+    tabela.configure(yscrollcommand = scrlbar_y.set)
+    open() 
+    janela_consulta.mainloop()
+
+
+
+#--------------------------
+#Janela de cadastro
+
+def salvar_cadastro():
+    global df
+    if insert_nome.get().strip() == '':
+        pop_up('vazio')
+    else:
+        lista_nomes=[]
+        for nome in df['nome'].tolist():
+            lista_nomes.append(nome.lower())
+
+        if insert_nome.get().lower() in lista_nomes:
+            pop_up('existe')
+
+        else:
+            novo_cadastro= {'nome':insert_nome.get(), 'tom':insert_tom.get(),'compositor':insert_compositor.entry.get(),
+                            'artista':insert_artista.entry.get(),'genero':insert_genero.entry.get(),
+                            'subgenero':insert_subgenero.entry.get(),'andamento':insert_andamento.get(),
+                            'clima':insert_clima.entry.get(),'tema':insert_tema.entry.get()}
+            
+            df = df._append(novo_cadastro,ignore_index=True)
+            df.to_csv(arquivo,index=False)
+            tabela.insert('',index=0,values=[insert_nome.get(),insert_tom.get(),insert_compositor.entry.get(),insert_artista.entry.get(),
+                                            insert_genero.entry.get(),insert_subgenero.entry.get(),insert_andamento.get(),
+                                            insert_clima.entry.get(),insert_tema.entry.get()])
+            pop_up('sucesso')
+
+
+def pop_up(situacao):
+    def pop_up_exit(event): janela.grab_set()
+    def enter(event): janelaok.destroy()   
+    def botao_ok_press(): janelaok.destroy()   
+    janelaok=tk.Toplevel()
+    janelaok.grab_set()
+    janelaok.bind('<Destroy>', pop_up_exit)
+    janelaok.geometry('300x100') 
+    janelaok.bind('<Return>', enter)
+    janelaok.focus_force()
+    if situacao == 'existe':
+        janelaok.title('Erro no salvamento')
+        mensagem=tk.Label(janelaok, text='Já existe uma música registrada com esse nome.\nTente novamente.')
+        mensagem.pack()
+    elif situacao =='vazio':
+        janelaok.title('Erro no salvamento')
+        mensagem=tk.Label(janelaok, text='Você precisa inserir o título da música')
+        mensagem.pack()
+    elif situacao == 'sucesso':
+        janelaok.title('Música salva')
+        mensagem=tk.Label(janelaok, text='Música salva com sucesso')
+        mensagem.pack()
+
+    botao_ok=tk.Button(janelaok, text='Ok', command=botao_ok_press)
+    botao_ok.pack()
+    janelaok.mainloop()
+
+def anexar_arquivo():
+    def pop_up_exit(event): janela.grab_set() 
+    def abrir_arquivo():
+        pass
+    def baixar_letra():
+        global tipo_documento
+        texto.delete(1.0, tk.END)
+        texto.insert(1.0, baixando_cifras_letras.baixar_letra(artista=unidecode(insert_artista.entry.get().lower().replace(' ','-')), musica=unidecode(insert_nome.get().lower().replace(' ','-'))))
+        tipo_documento='letra'
+    def baixar_cifra():
+        global tipo_documento
+        texto.delete(1.0, tk.END)
+        texto.insert(1.0, baixando_cifras_letras.baixar_cifra(artista=unidecode(insert_artista.entry.get().lower().replace(' ','-')), musica=unidecode(insert_nome.get().lower().replace(' ','-')), semitons=int(modular_box.get())))
+        tipo_documento='cifra'
+    def anexar():
+        document = Document()
+
+        titulo=document.add_paragraph().add_run(insert_nome.get())
+        fonte_titulo=titulo.font
+        fonte_titulo.name = 'Montserrat'
+        fonte_titulo.size = Pt(25)
+        fonte_titulo.bold=True
+        #fonte_titulo.color.rgb= RGBColor(23, 54, 93)
+
+        subtitulo=document.add_paragraph().add_run(f'{insert_compositor.entry.get()}\nTom: {insert_tom.get()}')
+        fonte_subtitulo=subtitulo.font
+        fonte_subtitulo.name = 'Calibri'
+        fonte_subtitulo.size = Pt(14)
+        fonte_subtitulo.bold=True
+
+        corpo=document.add_paragraph().add_run(texto.get(1.0, tk.END))
+        fonte=corpo.font
+        fonte.name = 'Arial'
+        document.add_page_break()
+        if tipo_documento == 'cifra':
+            fonte.size = Pt(12)
+            document.save(f'Cifras/{insert_nome.get()}.docx')
+        elif tipo_documento == 'letra':
+            fonte.size = Pt(15)
+            document.save(f'Letras/{insert_nome.get()}.docx')
+
+    janela_arquivo=tk.Toplevel()
+    janela_arquivo.grab_set()
+    janela_arquivo.bind('<Destroy>', pop_up_exit)
+    janela_arquivo.geometry('670x480') 
+    janela_arquivo.focus_force()
+    janela_arquivo.title('Anexar letra/cifra/partitura')
+    titulo=tk.Label(janela_arquivo, text='Anexar letra/cifra/partitura')
+    titulo.pack()
+    menu=tk.Frame(janela_arquivo)
+    menu.pack()
+    botao_manualmente=tk.Button(menu,text='Selecionar arquivo',command=abrir_arquivo)
+    botao_manualmente.grid(row=0, column= 0)
+    botao_letra=tk.Button(menu,text='Baixar letra do Letras.com',command=baixar_letra)
+    botao_letra.grid(row=0, column= 1)
+    botao_cifra=tk.Button(menu,text='Baixar cifras do CifraClub',command=baixar_cifra)
+    botao_cifra.grid(row=0, column= 2)
+
+    modular=tk.Frame(menu)
+    modular.grid(row=0, column= 3)  
+    modular_label=tk.Label(modular,text='Modular cifra\n(número de semitons ascendentes)')
+    modular_label.pack()
+    modular_box=ttk.Combobox(modular, values=[0,1,2,3,4,5,6,7,8,9,10,11,12], state='readonly',width=5)
+    modular_box.set(0)
+    modular_box.pack()
+
+    botao_anexar=tk.Button(menu,text='ANEXAR',command=anexar)
+    botao_anexar.grid(row=0, column= 4)
+
+    texto=tk.Text(janela_arquivo)
+    texto.pack(side='left')
+    scrltext_y = ttk.Scrollbar(janela_arquivo, orient ="vertical", command = texto.yview)
+    scrltext_y.pack(side ='right', fill ='y')
+    texto.configure(yscrollcommand = scrltext_y.set)
+    janela_arquivo.mainloop()
+
     
 
 def janela_cadastro():
-    global insert_nome, insert_tom, insert_compositor, insert_artista, insert_genero, insert_subgenero, insert_andamento, insert_clima, insert_tema
+    global janela, insert_nome, insert_tom, insert_compositor, insert_artista, insert_genero, insert_subgenero, insert_andamento, insert_clima, insert_tema
     janela=tk.Toplevel()
     janela.grab_set()
     janela.title('Cadastro de nova música')
-    janela.geometry('900x900')
+    janela.geometry('500x500')
+    janela.focus_force()
 
 
 
@@ -151,12 +292,17 @@ def janela_cadastro():
     insert_nome=EntryLimit(master=janela,width=55,limit=50)
     insert_nome.pack(pady=5)
 
-    label_tom=tk.Label(janela,text='Tom')
-    label_tom.pack()
-    insert_tom=ttk.Combobox(janela, values=tonalidades, state='readonly',width=5)
-    insert_tom.pack(pady=5)
+    janela_tom_andamento=tk.Frame(janela)
+    janela_tom_andamento.pack()
+    label_tom=tk.Label(janela_tom_andamento,text='Tom')
+    label_tom.grid(row=0, column=1, padx=30)
+    insert_tom=ttk.Combobox(janela_tom_andamento, values=tonalidades, state='readonly',width=5)
+    insert_tom.grid(row=1, column=1, padx=30)
 
-
+    label_andamento=tk.Label(janela_tom_andamento,text='Andamento')
+    label_andamento.grid(row=0, column=0, padx=10)
+    insert_andamento=ttk.Combobox(janela_tom_andamento, values=andamentos, state='readonly')
+    insert_andamento.grid(row=1, column=0, padx=10)
 
     janela_compositor=tk.Frame(janela)
     janela_compositor.pack()
@@ -188,11 +334,6 @@ def janela_cadastro():
     insert_subgenero.pack()
 
 
-    label_andamento=tk.Label(janela,text='Andamento')
-    label_andamento.pack(pady=5)
-    insert_andamento=ttk.Combobox(janela, values=andamentos, state='readonly')
-    insert_andamento.pack(pady=10)
-
     janela_clima=tk.Frame(janela)
     janela_clima.pack()
     label_clima=tk.Label(janela_clima,text='Clima')
@@ -207,9 +348,15 @@ def janela_cadastro():
     insert_tema=MeuComboBox(master=janela_tema, limit=50, width=55, dados=df['tema'].unique().tolist())
     insert_tema.pack()
 
-    botao=tk.Button(janela,text='Salvar nova música',command=salvar_cadastro)
-    botao.pack(pady=20)
+    arquivos=tk.Button(janela,text='Anexar letra/cifra/partitura',command=anexar_arquivo)
+    arquivos.pack(pady=20)
+
+    salvar=tk.Button(janela,text='Salvar nova música',command=salvar_cadastro)
+    salvar.pack(pady=20)
     janela.mainloop()
+
+
+#Ativar início do programa
 janela_consultar()
         
 

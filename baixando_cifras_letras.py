@@ -1,5 +1,6 @@
 #Salvando musicas cifraclub automaticamente
 from urllib.request import urlopen
+import urllib.error
 from bs4 import BeautifulSoup
 import re
 import ssl
@@ -50,51 +51,36 @@ def modular(cifra, semitons=0):
     texto = re.sub('<.+?>', '', texto)
     return texto        
 
-def validar_modulacao(valor):
-    try:
-        valor = int(valor)
-    except:
-        return False   
-    if valor > 0 and valor < 12:
-        return True
-    else:
-        return False
-
 
 # Ignore SSL certificate errors
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
-
-while True:
-    artista = input('Digite o nome do artista\n')
-    musica = input('Digite o nome da musica\n')
+def baixar_cifra(musica,artista,semitons):
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
     try:
         url = 'https://www.cifraclub.com.br/'+artista+'/'+musica+'/'
         html = urlopen(url, context=ctx).read()
         soup = BeautifulSoup(html, "html.parser")
         cifra = soup('pre')[0]
-        break
     except:
-        print('Não encontrado. Tente novamente.')
+        return '<Cifra não encontrada. Tente alterar o nome do artista ou corrigir a grafia da música>'
+    conteudo = modular(cifra,semitons=semitons)
+    return conteudo
 
+def baixar_letra(musica, artista):
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        url = 'https://www.letras.com/'+artista+'/'+musica+'/'
+        html = urlopen(url, context=ctx).read()
+        soup = BeautifulSoup(html, "html.parser")
+        letra = soup('div', {'class': "lyric-original font --lyrics --size18"})[0]
+        letra=str(letra)
+        letra=re.sub('<br/>', '\n', letra)
+        letra=re.sub('<.+?>', '', letra)
+        return letra
+    except:
+        return "<Letra não encontrada. Tente alterar o nome do artista ou corrigir a grafia da música>"
 
-
-
-conteudo = modular(cifra)
-print(conteudo)
-
-valor_modulacao = input('Modular? Se sim, digite quantos semitons:\nSe não, aperte enter: ')
-if validar_modulacao(valor_modulacao):
-    conteudo=modular(cifra,int(valor_modulacao))
-    arquivo = open('cifra.txt', 'w')
-    arquivo.write(conteudo)
-    arquivo.close()
-    arquivo = open('cifra.txt', 'r')
-    print(arquivo.read())
-    arquivo.close()
-else:
-    arquivo = open('cifra.txt', 'w')
-    arquivo.write(conteudo)
-    arquivo.close()
-print('Fim do programa')
+    
