@@ -9,7 +9,8 @@ from docx import Document
 from docx.shared import Pt
 from docx.shared import RGBColor
 
-#Widgets personalizados
+##Widgets personalizados
+ #Entry com limite de caracteres
 class EntryLimit(tk.Entry):
     def __init__(self, master, limit, width=10):
         self.limit_var=limit
@@ -22,7 +23,7 @@ class EntryLimit(tk.Entry):
             self.var.set(self.var.get()[:self.limit_var])
 
 
-
+  #Combobox com limite de caracteres e listbox acoplada para dar sugestão de preenchimento do campo, conforme o usuário digita.
 class MeuComboBox():
     def __init__(self, master, limit, dados, width=10):
         self.dados=dados
@@ -33,51 +34,53 @@ class MeuComboBox():
         self.var_str=tk.StringVar()
         self.var_str.trace_add(mode='write', callback=self.valida)
     
-    def pack(self):
+    def pack(self): #função para dar visibilidade ao objeto
         self.frame=tk.Frame(self.janela)
         self.frame.pack()
-        self.entry=ttk.Combobox(self.frame, width=self.width, values=self.dados,textvariable=self.var_str)
-        self.entry.pack()
+        self.combo=ttk.Combobox(self.frame, width=self.width, values=self.dados,textvariable=self.var_str)
+        self.combo.pack()
         self.list_box=tk.Listbox(self.frame, listvariable=self.data, height=0, width=self.width, selectmode='browse', activestyle='dotbox')
         self.list_box.bind('<<ListboxSelect>>',self.clica_lista)
                 
-    def clica_lista(self,evt):
+    def clica_lista(self,evt): #função para o preenchimento do campo ao clicar na listbox
         try:
             selecionado=self.list_box.curselection()
-            self.entry.set(self.list_box.get(selecionado))
-            self.entry.focus()
+            self.combo.set(self.list_box.get(selecionado))
+            self.combo.focus()
         except:
             pass
         self.list_box.pack_forget()
     
-    def valida(self,var,index,write):
+    def valida(self,var,index,write):  #limitação do número de caracteres e surgimento das sugestões depreenchimento na listbox
         self.list_box.delete(0, tk.END)
         if len(self.var_str.get())==0:
             self.list_box.pack_forget()
-            self.entry['values']=self.dados
+            self.combo['values']=self.dados
         elif len(self.var_str.get())>0:
-            self.entry.set(self.entry.get()[:self.limit])
+            self.combo.set(self.combo.get()[:self.limit]) #limite de carcteres
             data=[]
             indice_lista=0
             for i in self.dados:
-                if i.lower().startswith(self.var_str.get().lower()):
+                if i.lower().startswith(self.var_str.get().lower()):  #insere na listbox os valores que iniciam com os caracteres digitados
                     data.append(i)
                     self.list_box.pack()
                     self.list_box.insert(indice_lista, i)
                     indice_lista+=1
             if data == []:
-                self.entry['values']=self.dados
+                self.combo['values']=self.dados
                 self.list_box.pack_forget()
             else:
-                self.entry['values']=data
+                self.combo['values']=data
 
-#Variáveis iniciais
+#Variáveis iniciais: valores padrão para preenchimento dos campos e nome do arquivo onde será armazenada a lista do repertório.
 tonalidades = ['','C','Db','D','Eb','E','F','F#','Gb','G','Ab','A','Bb','B',
                'Cm','C#m','Dm','Ebm','Em','Fm','F#m','Gm','G#m','Am','A#m','Bbm','Bm']
 andamentos = ['','1 - Muito lento','2 - Lento','3 - Médio','4 - Rápido','5 - Muito Rápido']
 arquivo='repertorio.csv'
 
-#início do programa e janela inicial de consulta
+
+##início do programa e janela inicial de consulta
+  #função para abrir csv e inserir dados na coluna ordenados do mais recente ao  mais antigo
 def open():
     global df
     tabela.delete(*tabela.get_children())
@@ -95,6 +98,7 @@ def open():
 def cadastrar():
     janela_cadastro()
 
+#deletar dado selecionado ao pressionar tecla delete
 def delet(event):
     global df
     if tabela.selection() != ():
@@ -104,6 +108,7 @@ def delet(event):
         df.to_csv('repertorio.csv', index=False)
         tabela.delete(selected_item)
 
+#deletar dado selecionado ao clicar no botão delete
 def deletar():
     global df
     if tabela.selection() != ():
@@ -114,7 +119,7 @@ def deletar():
         tabela.delete(selected_item)
     
 
-
+#janela inicial
 def janela_consultar():
     global tabela
     janela_consulta=tk.Tk()
@@ -143,9 +148,9 @@ def janela_consultar():
 
 
 
-#--------------------------
-#Janela de cadastro
-
+##--------------------------
+##Janela de cadastro
+#comando do botão salvar
 def salvar_cadastro():
     global df
     if insert_nome.get().strip() == '':
@@ -171,7 +176,7 @@ def salvar_cadastro():
                                             insert_clima.entry.get(),insert_tema.entry.get()])
             pop_up('sucesso')
 
-
+#popup de confirmação de salvamento ou erro caso a música já esteja cadastrada ou o campo de nome da música esteja vazio
 def pop_up(situacao):
     def pop_up_exit(event): janela.grab_set()
     def enter(event): janelaok.destroy()   
@@ -199,11 +204,13 @@ def pop_up(situacao):
     botao_ok.pack()
     janelaok.mainloop()
 
+#janela de anexação de letra/cifra/ partitura
 def anexar_arquivo():
     def pop_up_exit(event): janela.grab_set() 
     def abrir_arquivo():
         pass
-    def baixar_letra():
+    #baixar letra e cifra usando webscrap dos sites cifraclub.com.br e letras.com
+    def baixar_letra(): 
         global tipo_documento
         texto.delete(1.0, tk.END)
         texto.insert(1.0, baixando_cifras_letras.baixar_letra(artista=unidecode(insert_artista.entry.get().lower().replace(' ','-')), musica=unidecode(insert_nome.get().lower().replace(' ','-'))))
@@ -213,7 +220,8 @@ def anexar_arquivo():
         texto.delete(1.0, tk.END)
         texto.insert(1.0, baixando_cifras_letras.baixar_cifra(artista=unidecode(insert_artista.entry.get().lower().replace(' ','-')), musica=unidecode(insert_nome.get().lower().replace(' ','-')), semitons=int(modular_box.get())))
         tipo_documento='cifra'
-    def anexar():
+    
+    def anexar():    #configurações e salvamento do documento docx
         document = Document()
 
         titulo=document.add_paragraph().add_run(insert_nome.get())
@@ -257,6 +265,7 @@ def anexar_arquivo():
     botao_cifra=tk.Button(menu,text='Baixar cifras do CifraClub',command=baixar_cifra)
     botao_cifra.grid(row=0, column= 2)
 
+#botão para selecionar a modulação de tonalidade desejada para a cifra
     modular=tk.Frame(menu)
     modular.grid(row=0, column= 3)  
     modular_label=tk.Label(modular,text='Modular cifra\n(número de semitons ascendentes)')
@@ -268,6 +277,7 @@ def anexar_arquivo():
     botao_anexar=tk.Button(menu,text='ANEXAR',command=anexar)
     botao_anexar.grid(row=0, column= 4)
 
+#janela para editar texto da cifra ou da letra
     texto=tk.Text(janela_arquivo)
     texto.pack(side='left')
     scrltext_y = ttk.Scrollbar(janela_arquivo, orient ="vertical", command = texto.yview)
@@ -276,7 +286,7 @@ def anexar_arquivo():
     janela_arquivo.mainloop()
 
     
-
+##janela para cadastrar novas músicas ou editar cadastro já salvo
 def janela_cadastro():
     global janela, insert_nome, insert_tom, insert_compositor, insert_artista, insert_genero, insert_subgenero, insert_andamento, insert_clima, insert_tema
     janela=tk.Toplevel()

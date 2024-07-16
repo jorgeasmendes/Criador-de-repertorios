@@ -1,6 +1,5 @@
-#Salvando musicas cifraclub automaticamente
+
 from urllib.request import urlopen
-import urllib.error
 from bs4 import BeautifulSoup
 import re
 import ssl
@@ -51,8 +50,6 @@ def modular(cifra, semitons=0):
     texto = re.sub('<.+?>', '', texto)
     return texto        
 
-
-# Ignore SSL certificate errors
 def baixar_cifra(musica,artista,semitons):
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
